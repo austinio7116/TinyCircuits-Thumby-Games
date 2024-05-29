@@ -48,9 +48,33 @@ def rotate_z(x, y, z, angle):
     sina = math.sin(rad)
     x, y = x * cosa - y * sina, x * sina + y * cosa
     return x, y, z
+    
+def draw_circle(x_center, y_center, radius, c):
+    x = radius
+    y = 0
+    decision = 1 - x
+
+    while y <= x:
+        thumby.display.setPixel(int(x_center + x), int(y_center + y), c)
+        thumby.display.setPixel(int(x_center - x), int(y_center + y), c)
+        thumby.display.setPixel(int(x_center + x), int(y_center - y), c)
+        thumby.display.setPixel(int(x_center - x), int(y_center - y), c)
+        thumby.display.setPixel(int(x_center + y), int(y_center + x), c)
+        thumby.display.setPixel(int(x_center - y), int(y_center + x), c)
+        thumby.display.setPixel(int(x_center + y), int(y_center - x), c)
+        thumby.display.setPixel(int(x_center - y), int(y_center - x), c)
+
+        y += 1
+        if decision <= 0:
+            decision += 2 * y + 1
+        else:
+            x -= 1
+            decision += 2 * (y - x) + 1
 
 # Initialize stars, ships, and lasers
 stars = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(10, 50)) for _ in range(100)]
+# Initialize planets
+planets = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(40, 100)) for _ in range(random.randint(1,4))]
 ships = []  # List to store enemy ships
 enemy_lasers = []  # List to store enemy lasers
 player_lasers = []  # List to store player lasers
@@ -75,6 +99,19 @@ def draw_stars(rotation_x, rotation_y, rotation_z):
         screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
         if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
             thumby.display.setPixel(screen_x, screen_y, 1)
+
+# Render planets
+def draw_planets(rotation_x, rotation_y, rotation_z):
+    for planet in planets:
+        x, y, z = planet
+        x, y, z = rotate_x(x, y, z, rotation_x)
+        x, y, z = rotate_y(x, y, z, rotation_y)
+        x, y, z = rotate_z(x, y, z, rotation_z)
+        screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
+        size_factor = 50 / (z + 1)
+        size = max(2, int(size_factor * 5))  # Planets should be larger than stars
+        if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
+            draw_circle(screen_x, screen_y, size, 1)
 
 # Render ships
 def draw_ships(rotation_x, rotation_y, rotation_z):
@@ -252,6 +289,7 @@ def game_loop():
         update_input()
         update_game()
         draw_stars(rotation_x, rotation_y, rotation_z)
+        draw_planets(rotation_x, rotation_y, rotation_z)
         draw_ships(rotation_x, rotation_y, rotation_z)
         draw_lasers(rotation_x, rotation_y, rotation_z, enemy_lasers)
         draw_lasers(rotation_x, rotation_y, rotation_z, player_lasers)
