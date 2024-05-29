@@ -6,11 +6,19 @@ import time
 # Initialize the screen
 thumby.display.setFPS(30)
 random.seed(time.ticks_ms())
+thumby.display.setFont("/lib/font3x5.bin", 3, 5, 1)
 
 # Define screen dimensions
 SCREEN_WIDTH = 72
 SCREEN_HEIGHT = 40
 
+# BITMAP: width: 72, height: 40
+cockpit = bytearray([255,255,255,255,255,255,255,127,63,31,15,7,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,7,15,31,63,127,255,255,255,255,255,255,255,
+           255,31,15,7,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,3,7,15,31,255,
+           255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,16,16,40,16,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,
+           255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,
+           255,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,240,8,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,8,240,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,255])
+           
 # Define 3D projection and transformation functions
 def project(x, y, z, screen_width, screen_height, fov, viewer_distance):
     if viewer_distance + z == 0:
@@ -47,6 +55,9 @@ ships = []  # List to store enemy ships
 enemy_lasers = []  # List to store enemy lasers
 player_lasers = []  # List to store player lasers
 hit_effects = []  # List to store hit effects
+
+kill_count = 0
+score = 0
 
 def spawn_ship():
     x = random.randint(-25, 25)
@@ -133,12 +144,12 @@ def update_input():
     global rotation_x, rotation_y, rotation_z
     if thumby.buttonU.pressed():
         rotation_x -= 5
-        if(rotation_x<-30):
-            rotation_x=-30
+        if(rotation_x<-45):
+            rotation_x=-45
     if thumby.buttonD.pressed():
         rotation_x += 5
-        if(rotation_x>30):
-            rotation_x=30
+        if(rotation_x>45):
+            rotation_x=45
     if thumby.buttonL.pressed():
         rotation_y += 5
         if(rotation_y>45):
@@ -176,7 +187,7 @@ def fire_lasers():
 
 # Update game state (move ships and lasers)
 def update_game():
-    global enemy_lasers, player_lasers, hit_effects, ships
+    global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count
     if random.randint(0, 100) < 3:  # 3% chance to spawn a new ship each frame
         spawn_ship()
     
@@ -195,9 +206,10 @@ def update_game():
             # Check for collision with ships
             for ship in ships:
                 sx, sy, sz = ship
-                if abs(sx - x) < 2 and abs(sy - y) < 2 and abs(sz - z) < 2:
+                if abs(sx - x) < 3 and abs(sy - y) < 3 and abs(sz - z) < 3:
                     hit_effects.append((sx, sy, sz, time.ticks_ms()))
                     ships_to_remove.add(ship)
+                    kill_count += 1
                     break
     player_lasers = new_player_lasers
 
@@ -207,9 +219,8 @@ def update_game():
             x, y, z = ship
             z -= 1
             if z < 1:  # Reset the ship position when it gets too close
-                x = random.randint(-25, 25)
-                y = random.randint(-15, 15)
-                z = 50
+                score += 1  # Increment score
+                continue  # Skip adding this ship to new_ships
             new_ships.append((x, y, z))
             if random.randint(0, 100) < 20:  # 20% chance to fire a laser each frame
                 vz = -3  # Velocity vector in z-direction (towards player) and faster
@@ -245,6 +256,10 @@ def game_loop():
         draw_lasers(rotation_x, rotation_y, rotation_z, enemy_lasers)
         draw_lasers(rotation_x, rotation_y, rotation_z, player_lasers)
         draw_hit_effects(rotation_x, rotation_y, rotation_z)
+        thumby.display.drawFilledRectangle(19,35,72,5,0)
+        thumby.display.blit(cockpit, 0, 0, 72, 40, 0, 0, 0)
+        thumby.display.drawText(f'K:{kill_count}', 22, 35, 1)
+        thumby.display.drawText(f'D:{score}', 37, 35, 1)
         thumby.display.update()
 
 game_loop()
