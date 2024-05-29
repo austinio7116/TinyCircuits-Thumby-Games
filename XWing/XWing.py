@@ -84,13 +84,33 @@ def draw_ships(rotation_x, rotation_y, rotation_z):
 def draw_lasers(rotation_x, rotation_y, rotation_z, lasers):
     for laser in lasers:
         x, y, z, vx, vy, vz = laser
-        x, y, z = rotate_x(x, y, z, rotation_x)
-        x, y, z = rotate_y(x, y, z, rotation_y)
-        x, y, z = rotate_z(x, y, z, rotation_z)
-        screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
-        end_x, end_y = project(x + vx, y + vy, z + vz, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
+
+        # Rotate start point
+        rotated_x, rotated_y, rotated_z = rotate_x(x, y, z, rotation_x)
+        rotated_x, rotated_y, rotated_z = rotate_y(rotated_x, rotated_y, rotated_z, rotation_y)
+        rotated_x, rotated_y, rotated_z = rotate_z(rotated_x, rotated_y, rotated_z, rotation_z)
+
+        # Rotate direction vector
+        #rotated_vx, rotated_vy, rotated_vz = rotate_x(vx, vy, vz, rotation_x)
+        #rotated_vx, rotated_vy, rotated_vz = rotate_y(rotated_vx, rotated_vy, rotated_vz, rotation_y)
+        #rotated_vx, rotated_vy, rotated_vz = rotate_z(rotated_vx, rotated_vy, rotated_vz, rotation_z)
+        
+        #
+        rotated_vx, rotated_vy, rotated_vz = rotate_x(vx, vy, vz, rotation_x)
+        rotated_vx, rotated_vy, rotated_vz = rotate_y(rotated_vx, rotated_vy, rotated_vz, rotation_y)
+        rotated_vx, rotated_vy, rotated_vz = rotate_z(rotated_vx, rotated_vy, rotated_vz, rotation_z)
+
+        # Calculate rotated end point
+        rotated_end_x = rotated_x + rotated_vx
+        rotated_end_y = rotated_y + rotated_vy
+        rotated_end_z = rotated_z + rotated_vz
+
+        # Project start and end points to 2D screen coordinates
+        screen_x, screen_y = project(rotated_x, rotated_y, rotated_z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
+        end_screen_x, end_screen_y = project(rotated_end_x, rotated_end_y, rotated_end_z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
+
         if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
-            thumby.display.drawLine(screen_x, screen_y, end_x, end_y, 1)
+            thumby.display.drawLine(screen_x, screen_y, end_screen_x, end_screen_y, 1)
 
 # Render hit effects
 def draw_hit_effects(rotation_x, rotation_y, rotation_z):
@@ -100,9 +120,11 @@ def draw_hit_effects(rotation_x, rotation_y, rotation_z):
         x, y, z = rotate_y(x, y, z, rotation_y)
         x, y, z = rotate_z(x, y, z, rotation_z)
         screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
-        size = 4  # Size of the hit effect rectangle
+        size_factor = 50 / (z + 1)
+        size = max(1, int(size_factor * 4))  # Scale the size based on distance
         if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
             thumby.display.drawRectangle(screen_x - size // 2, screen_y - size // 2, size, size, 1)
+
 
 # Handle input and update rotation
 rotation_x, rotation_y, rotation_z = 0, 0, 0
@@ -138,15 +160,15 @@ def fire_lasers():
     global player_lasers
     # Calculate direction vector towards where the player is looking
     direction_x, direction_y, direction_z = 0, 0, 1
-    direction_x, direction_y, direction_z = rotate(direction_x, direction_y, direction_z, rotation_x, rotation_y, rotation_z)
+    direction_x, direction_y, direction_z = rotate(direction_x, direction_y, direction_z, -rotation_x, -rotation_y, -rotation_z)
 
     # Fire lasers from two positions towards the center
-    gun1_x, gun1_y, gun1_z = 5, -3, 0
-    gun2_x, gun2_y, gun2_z = -5, -3, 0
+    gun1_x, gun1_y, gun1_z = 5, -3, 0.1
+    gun2_x, gun2_y, gun2_z = -5, -3, 0.1
 
     # Calculate the transformed gun positions
-    gun1_x, gun1_y, gun1_z = rotate(gun1_x, gun1_y, gun1_z, rotation_x, rotation_y, rotation_z)
-    gun2_x, gun2_y, gun2_z = rotate(gun2_x, gun2_y, gun2_z, rotation_x, rotation_y, rotation_z)
+    gun1_x, gun1_y, gun1_z = rotate(gun1_x, gun1_y, gun1_z, -rotation_x, -rotation_y, -rotation_z)
+    gun2_x, gun2_y, gun2_z = rotate(gun2_x, gun2_y, gun2_z, -rotation_x, -rotation_y, -rotation_z)
 
     laser_speed = 3
     player_lasers.append((gun1_x, gun1_y, gun1_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
@@ -166,15 +188,14 @@ def update_game():
     for laser in player_lasers:
         x, y, z, vx, vy, vz = laser
         z += vz
-        y -= vy
-        x -= vx
+        y += vy
+        x += vx
         if z < 50:  # Check if laser is still within range
             new_player_lasers.append((x, y, z, vx, vy, vz))
             # Check for collision with ships
             for ship in ships:
                 sx, sy, sz = ship
                 if abs(sx - x) < 2 and abs(sy - y) < 2 and abs(sz - z) < 2:
-                    print(f"Collision detected: Laser ({x}, {y}, {z}) Ship ({sx}, {sy}, {sz})")
                     hit_effects.append((sx, sy, sz, time.ticks_ms()))
                     ships_to_remove.add(ship)
                     break
@@ -212,7 +233,6 @@ def update_game():
 
     # Remove old hit effects
     hit_effects = [effect for effect in hit_effects if time.ticks_ms() - effect[3] < 1500]
-
 
 # Main game loop
 def game_loop():
