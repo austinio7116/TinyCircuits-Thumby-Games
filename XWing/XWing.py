@@ -19,6 +19,13 @@ cockpit = bytearray([0,0,0,0,0,0,128,64,32,16,8,4,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,
            255,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,240,8,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,8,240,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,255])
            
+# BITMAP: width: 72, height: 40
+shop = bytearray([255,255,3,59,123,243,123,59,3,3,255,255,3,3,251,203,171,251,3,3,255,255,3,3,251,43,43,251,3,3,255,255,3,3,59,75,139,75,59,3,255,255,3,19,19,19,163,99,99,19,3,11,11,11,11,251,11,11,11,11,11,99,51,51,83,147,19,3,3,3,255,255,
+           255,255,30,30,18,210,210,18,30,30,255,255,30,30,210,210,82,82,94,30,255,255,30,30,210,210,210,210,30,30,255,255,30,30,18,146,146,18,30,30,255,255,0,0,0,63,0,0,2,14,20,20,8,0,0,241,224,0,0,8,20,20,14,2,0,0,31,0,0,0,255,255,
+           255,255,240,240,148,151,151,148,240,240,255,255,240,240,151,151,148,148,244,240,255,255,240,240,151,148,144,151,244,240,255,255,240,240,144,145,145,144,240,240,255,255,0,8,14,7,1,193,128,24,48,64,120,192,121,1,121,193,8,120,32,48,24,128,193,7,15,8,0,0,255,255,
+           255,255,128,136,174,170,186,136,128,148,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,255,255,128,128,128,128,128,128,129,131,136,144,146,147,144,144,144,147,146,144,136,128,131,129,128,128,128,128,128,128,255,255,
+           255,255,128,190,170,170,128,168,144,168,128,186,128,190,168,128,128,128,128,128,255,128,190,162,170,148,128,188,160,188,128,130,188,130,128,128,128,128,128,128,255,255,128,136,174,170,186,136,128,148,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,255,255])
+           
 # Define 3D projection and transformation functions
 def project(x, y, z, screen_width, screen_height, fov, viewer_distance):
     if viewer_distance + z == 0:
@@ -82,6 +89,181 @@ hit_effects = []  # List to store hit effects
 
 kill_count = 0
 score = 0
+money = 0
+
+# Game state variables
+levels = [
+    {"intro": "Level 1: Defend the base.  Make sure no more than 5 ships get by.", "max_passed": 5},
+    {"intro": "Level 2: Increased threat", "max_passed": 3},
+    {"intro": "Level 3: High alert", "max_passed": 1},
+]
+
+shop_items = [
+    {"name": "Heart", "cost": 10, "effect": "shield"},
+    {"name": "Chip", "cost": 20, "effect": "rotation_speed"},
+    {"name": "A", "cost": 30, "effect": "rate_of_fire"},
+    {"name": "Shield", "cost": 40, "effect": "laser_speed"},
+    {"name": "Missile", "cost": 50, "effect": None},
+    {"name": "Lasers", "cost": 60, "effect": None},
+    {"name": "Music", "cost": 70, "effect": None},
+    {"name": "Shot", "cost": 80, "effect": None},
+]
+
+current_price = 0
+current_level = 0
+ships_passed = 0
+
+# Player stats
+player_stats = {
+    "rate_of_fire": 1.0,
+    "rotation_speed": 3.0,
+    "laser_speed": 3,
+    "shield": 0,
+}
+
+def storyteller(text, start_x, start_y, area_width, area_height, font_width, font_height):
+    """Display the given text with a typewriter effect."""
+    letter_length, line_height_change = font_width + 1, font_height + 1
+    scroll_speed, max_lines = 0.05, (area_height - font_height) // line_height_change
+    letter_position, line_height, lines_printed = start_x, start_y, 0
+
+    thumby.display.fill(0)
+
+    words = text.split()
+    for word in words:
+        if letter_position + len(word) * letter_length >= start_x + area_width:
+            line_height += line_height_change
+            letter_position = start_x
+            lines_printed += 1
+
+        if lines_printed >= max_lines:
+            while True:
+                thumby.display.drawText("...", start_x, start_y + area_height - font_height, 1)
+                thumby.display.update()
+                if thumby.buttonA.justPressed():
+                    thumby.audio.play(3000, 50)
+                    break
+                time.sleep(0.1)
+                thumby.display.drawFilledRectangle(start_x, start_y + area_height - font_height, area_width, font_height, 0)
+                thumby.display.update()
+                if thumby.buttonA.justPressed():
+                    thumby.audio.play(3000, 50)
+                    break
+                time.sleep(0.1)
+            thumby.display.fill(0)
+            letter_position, line_height, lines_printed = start_x, start_y, 0
+
+        for i in word:
+            thumby.display.drawText(i, letter_position, line_height, 1)
+            thumby.display.update()
+            letter_position += letter_length
+            time.sleep(scroll_speed)
+            thumby.audio.play(random.randrange(270, 300), 50)
+
+        letter_position += letter_length  # Add a space between words
+
+    thumby.audio.play(300, 100)
+
+def show_intro_screen(text):
+    storyteller(text,0,0,72,40,5,7)
+    thumby.display.update()
+    time.sleep(1)
+
+flashon=1
+# Function to render the shop screen
+def render_shop_screen(selected_option, total_gold):
+    global flashon, current_price
+    thumby.display.fill(0)
+    thumby.display.blit(shop, 0, 0, 72, 40, 0, 0, 0)
+    thumby.display.drawText(str(total_gold), 52, 33, 1)
+    
+    # Display the cost of the selected item
+    if selected_option < 8:
+        current_price = shop_items[selected_option]["cost"]
+    thumby.display.drawText(str(current_price), 12, 25, 1)
+    
+    # Highlight the selected option
+    highlight_positions = [
+        (4, 10), (14, 10), (24, 10), (34, 10),  # Top row
+        (4, 21), (14, 21), (24, 21), (34, 21),  # Bottom row
+        (17, 34), (37, 34)                      # Exit and Buy buttons
+    ]
+    x, y = highlight_positions[selected_option]
+    flashon = (flashon + 1) % 2
+    if selected_option in [8, 9]:
+        thumby.display.drawLine(x, y, x, y+2, flashon)
+        thumby.display.drawLine(x-1, y, x-1, y+2, flashon)
+        thumby.display.drawLine(x+1, y, x+1, y+2, flashon)
+    else:
+        thumby.display.drawLine(x, y, x + 3, y, flashon)
+        thumby.display.drawLine(x, y+1, x + 3, y+1, flashon)
+    
+    thumby.display.update()
+
+# Function to handle shop input
+def shop_input(selected_option):
+    if thumby.buttonU.justPressed():
+        if selected_option >= 4 and selected_option <= 7:
+            selected_option -= 4
+        elif selected_option >= 8:  # If currently on Exit or Buy button
+            selected_option -= 4  # Move to the second row of shop items
+    if thumby.buttonD.justPressed():
+        if selected_option < 4:
+            selected_option += 4
+        elif selected_option >= 4 and selected_option <= 7:
+            selected_option = 8 if selected_option == 4 or selected_option == 5 else 9  # Move to the Exit or Buy button
+    if thumby.buttonL.justPressed():
+        if selected_option % 4 > 0 or selected_option == 9:
+            selected_option -= 1
+    if thumby.buttonR.justPressed():
+        if selected_option % 4 < 3 or selected_option == 8:
+            selected_option += 1
+    if thumby.buttonA.justPressed():
+        if selected_option == 8:
+            return 'exit'  # Exit button action
+        elif selected_option == 9:
+            return 'buy'   # Buy button action
+        else:
+            global current_price
+            return 'buy'
+    return selected_option
+
+
+# Function to apply item effects
+def apply_item_effect(effect):
+    if effect == "shield":
+        player_stats["shield"] += 1
+    elif effect == "rotation_speed":
+        player_stats["rotation_speed"] += 1
+    elif effect == "rate_of_fire":
+        player_stats["rate_of_fire"] += 0.2
+    elif effect == "laser_speed":
+        player_stats["laser_speed"] += 1
+
+# Function to display the shop screen
+def show_shop_screen(earned_money):
+    global money
+    money += earned_money
+    selected_option = 0
+    while True:
+        result = shop_input(selected_option)
+        if result == 'exit':
+            break  # Exit the shop
+        elif result == 'buy':
+            if money >= current_price:
+                money -= current_price
+                effect = shop_items[selected_option]["effect"]
+                if effect:
+                    apply_item_effect(effect)
+        else:
+            selected_option = result
+            
+        render_shop_screen(selected_option, money)
+        time.sleep(0.2)  # Add a small delay to make the flashing visible
+
+def show_game_over_screen():
+    storyteller('Game Over',0,0,72,40,5,7)
+    time.sleep(1)
 
 def spawn_ship():
     x = random.randint(-25, 25)
@@ -138,11 +320,6 @@ def draw_lasers(rotation_x, rotation_y, rotation_z, lasers):
         rotated_x, rotated_y, rotated_z = rotate_y(rotated_x, rotated_y, rotated_z, rotation_y)
         rotated_x, rotated_y, rotated_z = rotate_z(rotated_x, rotated_y, rotated_z, rotation_z)
 
-        # Rotate direction vector
-        #rotated_vx, rotated_vy, rotated_vz = rotate_x(vx, vy, vz, rotation_x)
-        #rotated_vx, rotated_vy, rotated_vz = rotate_y(rotated_vx, rotated_vy, rotated_vz, rotation_y)
-        #rotated_vx, rotated_vy, rotated_vz = rotate_z(rotated_vx, rotated_vy, rotated_vz, rotation_z)
-        
         #
         rotated_vx, rotated_vy, rotated_vz = rotate_x(vx, vy, vz, rotation_x)
         rotated_vx, rotated_vy, rotated_vz = rotate_y(rotated_vx, rotated_vy, rotated_vz, rotation_y)
@@ -180,19 +357,19 @@ rotation_x, rotation_y, rotation_z = 0, 0, 0
 def update_input():
     global rotation_x, rotation_y, rotation_z
     if thumby.buttonU.pressed():
-        rotation_x -= 5
+        rotation_x -= player_stats["rotation_speed"]
         if(rotation_x<-45):
             rotation_x=-45
     if thumby.buttonD.pressed():
-        rotation_x += 5
+        rotation_x += player_stats["rotation_speed"]
         if(rotation_x>45):
             rotation_x=45
     if thumby.buttonL.pressed():
-        rotation_y += 5
+        rotation_y += player_stats["rotation_speed"]
         if(rotation_y>45):
             rotation_y=45
     if thumby.buttonR.pressed():
-        rotation_y -= 5
+        rotation_y -= player_stats["rotation_speed"]
         if(rotation_y<-45):
             rotation_y=-45
     if thumby.buttonA.justPressed():
@@ -218,13 +395,13 @@ def fire_lasers():
     gun1_x, gun1_y, gun1_z = rotate(gun1_x, gun1_y, gun1_z, -rotation_x, -rotation_y, -rotation_z)
     gun2_x, gun2_y, gun2_z = rotate(gun2_x, gun2_y, gun2_z, -rotation_x, -rotation_y, -rotation_z)
 
-    laser_speed = 3
+    laser_speed = player_stats["laser_speed"]
     player_lasers.append((gun1_x, gun1_y, gun1_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
     player_lasers.append((gun2_x, gun2_y, gun2_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
 
 # Update game state (move ships and lasers)
 def update_game():
-    global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count
+    global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count, ships_passed
     if random.randint(0, 100) < 3:  # 3% chance to spawn a new ship each frame
         spawn_ship()
     
@@ -255,8 +432,8 @@ def update_game():
         if ship not in ships_to_remove:
             x, y, z = ship
             z -= 1
-            if z < 1:  # Reset the ship position when it gets too close
-                score += 1  # Increment score
+            if z < 1:  # Check if ship has passed
+                ships_passed += 1
                 continue  # Skip adding this ship to new_ships
             new_ships.append((x, y, z))
             if random.randint(0, 100) < 20:  # 20% chance to fire a laser each frame
@@ -282,9 +459,13 @@ def update_game():
     # Remove old hit effects
     hit_effects = [effect for effect in hit_effects if time.ticks_ms() - effect[3] < 1500]
 
-# Main game loop
-def game_loop():
-    while True:
+def level_loop(level_data):
+    global score, kill_count, ships_passed
+
+    show_intro_screen(level_data["intro"])
+
+    start_time = time.ticks_ms()
+    while time.ticks_diff(time.ticks_ms(), start_time) < 30000:  # 30 seconds
         thumby.display.fill(0)  # Clear the screen
         update_input()
         update_game()
@@ -297,7 +478,30 @@ def game_loop():
         thumby.display.drawFilledRectangle(19,35,72,5,0)
         thumby.display.blit(cockpit, 0, 0, 72, 40, 0, 0, 0)
         thumby.display.drawText(f'K:{kill_count}', 22, 35, 1)
-        thumby.display.drawText(f'D:{score}', 37, 35, 1)
+        thumby.display.drawText(f'D:{ships_passed}', 37, 35, 1)
         thumby.display.update()
+    
+    if ships_passed > level_data["max_passed"] + player_stats["shield"]:
+        show_game_over_screen()
+        return False
+    
+    earned_money = kill_count * 10  # Example earning calculation
+    show_shop_screen(earned_money)
+
+
+    return True
+
+def game_loop():
+    global current_level, ships_passed, score, kill_count
+
+    while current_level < len(levels):
+        ships_passed = 0
+        score = 0
+        kill_count = 0
+        if not level_loop(levels[current_level]):
+            break
+        current_level += 1
+
+    show_game_over_screen()
 
 game_loop()
