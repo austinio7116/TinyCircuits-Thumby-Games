@@ -2,6 +2,7 @@ import thumby
 import math
 import random
 import time
+from thumbyAudio import audio
 
 # Initialize the screen
 thumby.display.setFPS(30)
@@ -20,11 +21,11 @@ cockpit = bytearray([0,0,0,0,0,0,128,64,32,16,8,4,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
            255,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,240,8,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,8,240,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,255])
            
 # BITMAP: width: 72, height: 40
-shop = bytearray([255,255,3,59,123,243,123,59,3,3,255,255,3,3,251,203,171,251,3,3,255,255,3,3,251,43,43,251,3,3,255,255,3,3,59,75,139,75,59,3,255,255,3,19,19,19,163,99,99,19,3,11,11,11,11,251,11,11,11,11,11,99,51,51,83,147,19,3,3,3,255,255,
-           255,255,30,30,18,210,210,18,30,30,255,255,30,30,210,210,82,82,94,30,255,255,30,30,210,210,210,210,30,30,255,255,30,30,18,146,146,18,30,30,255,255,0,0,0,63,0,0,2,14,20,20,8,0,0,241,224,0,0,8,20,20,14,2,0,0,31,0,0,0,255,255,
-           255,255,240,240,148,151,151,148,240,240,255,255,240,240,151,151,148,148,244,240,255,255,240,240,151,148,144,151,244,240,255,255,240,240,144,145,145,144,240,240,255,255,0,8,14,7,1,193,128,24,48,64,120,192,121,1,121,193,8,120,32,48,24,128,193,7,15,8,0,0,255,255,
+shop = bytearray([255,255,3,59,75,139,75,59,3,3,255,255,3,251,203,171,147,235,3,3,255,255,3,3,171,3,3,171,3,3,255,255,3,139,83,35,139,83,35,3,255,255,3,19,19,19,163,99,99,19,3,11,11,11,11,251,11,11,11,11,11,99,51,51,83,147,19,3,3,3,255,255,
+           255,255,30,30,18,210,210,18,30,30,255,255,30,30,210,210,82,82,94,30,255,255,30,30,210,210,210,210,30,30,255,255,30,222,82,82,82,210,30,30,255,255,0,0,0,63,0,0,2,14,20,20,8,0,0,241,224,0,0,8,20,20,14,2,0,0,31,0,0,0,255,255,
+           255,255,240,240,148,151,151,148,240,240,255,255,240,240,151,151,148,148,244,240,255,255,240,240,151,148,144,151,244,240,255,255,240,240,144,149,145,145,240,240,255,255,0,8,14,7,1,193,128,24,48,64,120,192,121,1,121,193,8,120,32,48,24,128,193,7,15,8,0,0,255,255,
            255,255,128,136,174,170,186,136,128,148,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,255,255,128,128,128,128,128,128,129,131,136,144,146,147,144,144,144,147,146,144,136,128,131,129,128,128,128,128,128,128,255,255,
-           255,255,128,190,170,170,128,168,144,168,128,186,128,190,168,128,128,128,128,128,255,128,190,162,170,148,128,188,160,188,128,130,188,130,128,128,128,128,128,128,255,255,128,136,174,170,186,136,128,148,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,255,255])
+           255,255,128,190,170,170,128,168,144,168,128,186,128,190,168,128,128,128,128,128,255,128,174,170,170,186,128,190,136,190,128,190,162,162,190,128,190,138,142,128,255,255,128,136,174,170,186,136,128,148,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,255,255])
            
 # Define 3D projection and transformation functions
 def project(x, y, z, screen_width, screen_height, fov, viewer_distance):
@@ -78,14 +79,27 @@ def draw_circle(x_center, y_center, radius, c):
             x -= 1
             decision += 2 * (y - x) + 1
 
-# Initialize stars, ships, and lasers
-stars = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(10, 50)) for _ in range(100)]
-# Initialize planets
-planets = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(40, 100)) for _ in range(random.randint(1,4))]
+# Initialize global variables
+stars = []
+planets = []
 ships = []  # List to store enemy ships
 enemy_lasers = []  # List to store enemy lasers
 player_lasers = []  # List to store player lasers
 hit_effects = []  # List to store hit effects
+
+def reset_level_variables():
+    global ships, stars, planets, rotation_x, rotation_y, rotation_z
+    global player_lasers, enemy_lasers, hit_effects
+
+    # Reset variables
+    ships = []
+    stars = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(10, 50)) for _ in range(100)]
+    planets = [(random.randint(-50, 50), random.randint(-30, 30), random.randint(40, 100)) for _ in range(random.randint(1, 4))]
+    rotation_x, rotation_y, rotation_z = 0, 0, 0
+    player_lasers = []
+    enemy_lasers = []
+    hit_effects = []
+    
 
 kill_count = 0
 score = 0
@@ -93,9 +107,9 @@ money = 0
 
 # Game state variables
 levels = [
-    {"intro": "Level 1: Defend the base.  Make sure no more than 5 ships get by.", "max_passed": 5},
-    {"intro": "Level 2: Increased threat", "max_passed": 3},
-    {"intro": "Level 3: High alert", "max_passed": 1},
+    {"intro": "Level 1: Hey rookie - time to shoot something.  Defend the rebel base.  Make sure no more than 5 ships get by.", "max_passed": 5},
+    {"intro": "Level 2: Here comes another wave - we can't take much more damage!", "max_passed": 3},
+    {"intro": "Level 3: This is the final push - just hold them off a little longer", "max_passed": 1},
 ]
 
 shop_items = [
@@ -103,19 +117,37 @@ shop_items = [
     {"name": "Chip", "cost": 20, "effect": "rotation_speed"},
     {"name": "A", "cost": 30, "effect": "rate_of_fire"},
     {"name": "Shield", "cost": 40, "effect": "laser_speed"},
-    {"name": "Missile", "cost": 50, "effect": None},
-    {"name": "Lasers", "cost": 60, "effect": None},
-    {"name": "Music", "cost": 70, "effect": None},
-    {"name": "Shot", "cost": 80, "effect": None},
+    {"name": "Missile", "cost": 50, "effect": "smart_bomb"},
+    {"name": "Lasers", "cost": 60, "effect": "extra_lasers"},
+    {"name": "Music", "cost": 70, "effect": "play_music"},
+    {"name": "Shot", "cost": 80, "effect": "more_baddies"},
 ]
+
+sequence = [
+    (294, 200), (294, 200), (294, 200),  # Triplet of D
+    (392, 600), (587, 600),                  # G, D
+    (523, 200), (494, 200), (440, 200),     # Triplet C, B, A
+    (784, 600), (587, 600),                  # G (octave up), D
+    (523, 200), (494, 200), (440, 200),     # Triplet C, B, A
+    (784, 600), (587, 600),                   # G (octave up), D
+    (523, 200), (494, 200), (523, 200),
+    (440, 600)
+]
+
+def play_audio_sequence(sequence):
+    # This function plays a sequence of audio tones.
+    # It iterates over the provided sequence of (frequency, duration) tuples and plays each tone using the audio library.
+    for freq, duration in sequence:
+        audio.playBlocking(freq, duration)
 
 current_price = 0
 current_level = 0
 ships_passed = 0
+last_shot_time = 0
 
 # Player stats
 player_stats = {
-    "rate_of_fire": 1.0,
+    "time_between_shots": 500,
     "rotation_speed": 3.0,
     "laser_speed": 3,
     "shield": 0,
@@ -126,7 +158,7 @@ def storyteller(text, start_x, start_y, area_width, area_height, font_width, fon
     letter_length, line_height_change = font_width + 1, font_height + 1
     scroll_speed, max_lines = 0.05, (area_height - font_height) // line_height_change
     letter_position, line_height, lines_printed = start_x, start_y, 0
-
+    thumby.display.setFont("/lib/font5x7.bin", 5, 7, 1)
     thumby.display.fill(0)
 
     words = text.split()
@@ -163,6 +195,7 @@ def storyteller(text, start_x, start_y, area_width, area_height, font_width, fon
         letter_position += letter_length  # Add a space between words
 
     thumby.audio.play(300, 100)
+    thumby.display.setFont("/lib/font3x5.bin", 3, 5, 1)
 
 def show_intro_screen(text):
     storyteller(text,0,0,72,40,5,7)
@@ -186,7 +219,7 @@ def render_shop_screen(selected_option, total_gold):
     highlight_positions = [
         (4, 10), (14, 10), (24, 10), (34, 10),  # Top row
         (4, 21), (14, 21), (24, 21), (34, 21),  # Bottom row
-        (17, 34), (37, 34)                      # Exit and Buy buttons
+        (17, 34)                      # Exit and Buy buttons
     ]
     x, y = highlight_positions[selected_option]
     flashon = (flashon + 1) % 2
@@ -211,18 +244,16 @@ def shop_input(selected_option):
         if selected_option < 4:
             selected_option += 4
         elif selected_option >= 4 and selected_option <= 7:
-            selected_option = 8 if selected_option == 4 or selected_option == 5 else 9  # Move to the Exit or Buy button
+            selected_option = 8
     if thumby.buttonL.justPressed():
-        if selected_option % 4 > 0 or selected_option == 9:
+        if selected_option % 4 > 0 and selected_option != 8:
             selected_option -= 1
     if thumby.buttonR.justPressed():
-        if selected_option % 4 < 3 or selected_option == 8:
+        if selected_option % 4 < 3 and selected_option != 8:
             selected_option += 1
     if thumby.buttonA.justPressed():
         if selected_option == 8:
             return 'exit'  # Exit button action
-        elif selected_option == 9:
-            return 'buy'   # Buy button action
         else:
             global current_price
             return 'buy'
@@ -236,9 +267,17 @@ def apply_item_effect(effect):
     elif effect == "rotation_speed":
         player_stats["rotation_speed"] += 1
     elif effect == "rate_of_fire":
-        player_stats["rate_of_fire"] += 0.2
+        player_stats["time_between_shots"] *= 0.8
     elif effect == "laser_speed":
         player_stats["laser_speed"] += 1
+    elif effect == "play_music":
+        play_audio_sequence(sequence)
+        
+        
+    {"name": "Missile", "cost": 50, "effect": "smart_bomb"},
+    {"name": "Lasers", "cost": 60, "effect": "extra_lasers"},
+    {"name": "Music", "cost": 70, "effect": "play_music"},
+    {"name": "Shot", "cost": 80, "effect": "more_baddies"},
 
 # Function to display the shop screen
 def show_shop_screen(earned_money):
@@ -263,6 +302,10 @@ def show_shop_screen(earned_money):
 
 def show_game_over_screen():
     storyteller('Game Over',0,0,72,40,5,7)
+    time.sleep(1)
+    
+def you_win_screen():
+    storyteller('The secret base is secured!',0,0,72,40,5,7)
     time.sleep(1)
 
 def spawn_ship():
@@ -346,16 +389,31 @@ def draw_hit_effects(rotation_x, rotation_y, rotation_z):
         x, y, z = rotate_z(x, y, z, rotation_z)
         screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
         size_factor = 50 / (z + 1)
-        size = max(1, int(size_factor * 4))  # Scale the size based on distance
-        if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
-            thumby.display.drawRectangle(screen_x - size // 2, screen_y - size // 2, size, size, 1)
-
+        
+        # Generate a random number of circles for the effect
+        num_circles = random.randint(3, 7)
+        
+        for _ in range(num_circles):
+            # Generate random offset around the impact point
+            offset_x = random.uniform(-4, 4)
+            offset_y = random.uniform(-4, 4)
+            
+            # Generate random size for the circle, scaled by size factor
+            radius = max(1, int(size_factor * random.uniform(1, 3)))
+            
+            # Calculate the position for the circle
+            circle_x = screen_x + offset_x
+            circle_y = screen_y + offset_y
+            
+            # Ensure the circle is within screen bounds
+            if 0 <= circle_x < SCREEN_WIDTH and 0 <= circle_y < SCREEN_HEIGHT:
+                draw_circle(int(circle_x), int(circle_y), radius, 1)
 
 # Handle input and update rotation
 rotation_x, rotation_y, rotation_z = 0, 0, 0
 
 def update_input():
-    global rotation_x, rotation_y, rotation_z
+    global rotation_x, rotation_y, rotation_z, last_shot_time
     if thumby.buttonU.pressed():
         rotation_x -= player_stats["rotation_speed"]
         if(rotation_x<-45):
@@ -373,7 +431,10 @@ def update_input():
         if(rotation_y<-45):
             rotation_y=-45
     if thumby.buttonA.justPressed():
-        fire_lasers()
+        current_time = time.ticks_ms()
+        if current_time - last_shot_time >= player_stats["time_between_shots"]:
+            fire_lasers()
+            last_shot_time = current_time
 
 def rotate(x, y, z, angle_x, angle_y, angle_z):
     x, y, z = rotate_x(x, y, z, angle_x)
@@ -401,8 +462,9 @@ def fire_lasers():
 
 # Update game state (move ships and lasers)
 def update_game():
-    global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count, ships_passed
-    if random.randint(0, 100) < 3:  # 3% chance to spawn a new ship each frame
+    global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count, ships_passed, current_level
+    spawnrate = 3 * (current_level + 1)
+    if random.randint(0, 100) < spawnrate:  # 3% chance to spawn a new ship each frame
         spawn_ship()
     
     new_ships = []
@@ -431,7 +493,7 @@ def update_game():
     for ship in ships:
         if ship not in ships_to_remove:
             x, y, z = ship
-            z -= 1
+            z -= 0.35 * (current_level + 1)
             if z < 1:  # Check if ship has passed
                 ships_passed += 1
                 continue  # Skip adding this ship to new_ships
@@ -460,10 +522,10 @@ def update_game():
     hit_effects = [effect for effect in hit_effects if time.ticks_ms() - effect[3] < 1500]
 
 def level_loop(level_data):
-    global score, kill_count, ships_passed
+    global score, kill_count, ships_passed, min_shot_interval
 
     show_intro_screen(level_data["intro"])
-
+    reset_level_variables()
     start_time = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), start_time) < 30000:  # 30 seconds
         thumby.display.fill(0)  # Clear the screen
@@ -482,7 +544,6 @@ def level_loop(level_data):
         thumby.display.update()
     
     if ships_passed > level_data["max_passed"] + player_stats["shield"]:
-        show_game_over_screen()
         return False
     
     earned_money = kill_count * 10  # Example earning calculation
@@ -493,15 +554,16 @@ def level_loop(level_data):
 
 def game_loop():
     global current_level, ships_passed, score, kill_count
-
+    play_audio_sequence(sequence)
     while current_level < len(levels):
         ships_passed = 0
         score = 0
         kill_count = 0
         if not level_loop(levels[current_level]):
+            show_game_over_screen()
             break
         current_level += 1
-
-    show_game_over_screen()
+        if(current_level>len(levels)):
+            you_win_screen()
 
 game_loop()
