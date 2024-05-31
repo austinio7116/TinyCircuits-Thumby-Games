@@ -108,9 +108,9 @@ money = 0
 
 # Game state variables
 levels = [
-    {"intro": "Level 1: Hey rookie - Defend the rebel base.  Make sure no more than 5 ships get by.", "max_passed": 5},
-    {"intro": "Level 2: Here comes another wave - we can't take much more damage!", "max_passed": 3},
-    {"intro": "Level 3: This is the final push - just hold them off a little longer", "max_passed": 1},
+    {"intro": "Level 1: Hey rookie - Defend the rebel base. Don't let more than 5 ships through.", "max_passed": 5},
+    {"intro": "Level 2: Here comes another wave - we can't take much more damage!", "max_passed": 5},
+    {"intro": "Level 3: This is the final push - just hold them off a little longer", "max_passed": 3},
 ]
 
 shop_items = [
@@ -319,10 +319,12 @@ def you_win_screen():
     time.sleep(1)
 
 def spawn_ship():
-    x = random.randint(-25, 25)
-    y = random.randint(-15, 15)
+    x = random.randint(-20, 20)
+    y = random.randint(-10, 10)
     z = 50  # Start far away
-    ships.append((x, y, z))
+    ship_type = random.choice([0, 1, 2])  # Randomly assign a type
+    ships.append((x, y, z, ship_type))
+
 
 # Render stars
 def draw_stars(rotation_x, rotation_y, rotation_z):
@@ -349,23 +351,9 @@ def draw_planets(rotation_x, rotation_y, rotation_z):
             draw_circle(screen_x, screen_y, size, 1)
 
 # Render ships
-def draw_x_ships(rotation_x, rotation_y, rotation_z):
-    for ship in ships:
-        x, y, z = ship
-        x, y, z = rotate_x(x, y, z, rotation_x)
-        x, y, z = rotate_y(x, y, z, rotation_y)
-        x, y, z = rotate_z(x, y, z, rotation_z)
-        screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
-        size_factor = 50 / (z + 1)
-        size = max(1, int(size_factor * 2))
-        if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
-            # Draw ship as an "X" that grows larger as it approaches
-            thumby.display.drawLine(screen_x - size, screen_y - size, screen_x + size, screen_y + size, 1)
-            thumby.display.drawLine(screen_x - size, screen_y + size, screen_x + size, screen_y - size, 1)
-            
 def draw_ships(rotation_x, rotation_y, rotation_z):
     for ship in ships:
-        x, y, z = ship
+        x, y, z, ship_type = ship
         x, y, z = rotate_x(x, y, z, rotation_x)
         x, y, z = rotate_y(x, y, z, rotation_y)
         x, y, z = rotate_z(x, y, z, rotation_z)
@@ -373,27 +361,49 @@ def draw_ships(rotation_x, rotation_y, rotation_z):
         size_factor = 50 / (z + 1)
         size = max(1, int(size_factor * 2))
         if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
-            # Draw ship body as a circle
-            draw_circle(screen_x, screen_y, max(1, int(size // 2)), 1)
+            if ship_type < 2:
+                # Default ship drawing
+                draw_circle(screen_x, screen_y, max(1, int(size // 2)), 1)
+                wing_span = size  # Adjust this value as needed for wing size
+                wing_length = wing_span // 2
+                thumby.display.drawLine(screen_x - wing_length, screen_y, screen_x - wing_length - wing_span, screen_y, 1)
+                thumby.display.drawLine(screen_x + wing_length, screen_y, screen_x + wing_length + wing_span, screen_y, 1)
+                if ship_type == 0:
+                    thumby.display.drawLine(screen_x - size - wing_length, screen_y - wing_length * 3, screen_x - size - wing_length, screen_y + wing_length * 3, 1)
+                    thumby.display.drawLine(screen_x + size + wing_length, screen_y - wing_length * 3, screen_x + size + wing_length, screen_y + wing_length * 3, 1)
+                elif ship_type == 1:
+                    thumby.display.drawLine(screen_x - size, screen_y - 2 * wing_length, screen_x - size - wing_length, screen_y - wing_length, 1)
+                    thumby.display.drawLine(screen_x - size, screen_y + 2 * wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)
+                    thumby.display.drawLine(screen_x - size - wing_length, screen_y - wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)
+                    thumby.display.drawLine(screen_x + size, screen_y - 2 * wing_length, screen_x + size + wing_length, screen_y - wing_length, 1)
+                    thumby.display.drawLine(screen_x + size, screen_y + 2 * wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)
+                    thumby.display.drawLine(screen_x + size + wing_length, screen_y - wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)
+            elif ship_type == 2:
+                # New ship type rendering (simplified 2D representation)
+                ship_width = size * 4
+                ship_height = size * 2
+                # Lower triangle (reflected in the x-axis)
+                thumby.display.drawLine(screen_x - ship_width // 2, screen_y, screen_x + ship_width // 2, screen_y, 1)
+                thumby.display.drawLine(screen_x - ship_width // 2, screen_y, screen_x, screen_y + ship_height // 3, 1)
+                thumby.display.drawLine(screen_x + ship_width // 2, screen_y, screen_x, screen_y + ship_height // 3, 1)
+                # Upper triangle
+                thumby.display.drawLine(screen_x - ship_width // 2, screen_y, screen_x + ship_width // 2, screen_y, 1)
+                thumby.display.drawLine(screen_x - ship_width // 2, screen_y, screen_x, screen_y - ship_height // 3, 1)
+                thumby.display.drawLine(screen_x + ship_width // 2, screen_y, screen_x, screen_y - ship_height // 3, 1)
+                # Main body (wide rectangle) moved down
+                main_body_width = ship_width // 2
+                main_body_height = size // 2
+                body_offset = (size * 2) //3  # Move down
+                thumby.display.drawRectangle(screen_x - main_body_width // 2, screen_y - ship_height // 2 - main_body_height + body_offset, main_body_width, main_body_height, 1)
+                # Bridge connection (narrow rectangle) moved down
+                bridge_width = main_body_width // 4
+                bridge_height = size // 4
+                thumby.display.drawRectangle(screen_x - bridge_width // 2, screen_y - ship_height // 2 - main_body_height - bridge_height + body_offset, bridge_width, bridge_height, 1)
+                # Top structure (smaller rectangle) moved down
+                top_width = main_body_width // 2
+                top_height = main_body_height
+                thumby.display.drawRectangle(screen_x - top_width // 2, screen_y - ship_height // 2 - main_body_height - bridge_height - top_height + body_offset, top_width, top_height, 1)
 
-            # Draw wings and additional lines
-            wing_span = size  # Adjust this value as needed for wing size
-            wing_length = wing_span // 2
-
-            # Horizontal line connecting wings, starting from the outside of the circle
-            thumby.display.drawLine(screen_x - wing_length, screen_y, screen_x - wing_length - wing_span, screen_y, 1)
-            thumby.display.drawLine(screen_x + wing_length, screen_y, screen_x + wing_length + wing_span, screen_y, 1)
-
-
-            # Left wing lines
-            thumby.display.drawLine(screen_x - size, screen_y - 2 * wing_length, screen_x - size - wing_length, screen_y - wing_length, 1)  # \
-            thumby.display.drawLine(screen_x - size, screen_y + 2 * wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)  # /
-            thumby.display.drawLine(screen_x - size - wing_length, screen_y - wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)  # |
-
-            # Right wing lines
-            thumby.display.drawLine(screen_x + size, screen_y - 2 * wing_length, screen_x + size + wing_length, screen_y - wing_length, 1)  # /
-            thumby.display.drawLine(screen_x + size, screen_y + 2 * wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)  # \
-            thumby.display.drawLine(screen_x + size + wing_length, screen_y - wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)  # |
 
 
 # Render lasers
@@ -472,7 +482,7 @@ def activate_smart_bomb():
 
         # Destroy all ships
         for ship in ships:
-            sx, sy, sz = ship
+            sx, sy, sz, st = ship
             hit_effects.append((sx, sy, sz, time.ticks_ms()))
         ships = []
 
@@ -554,7 +564,7 @@ def update_game():
             new_player_lasers.append((x, y, z, vx, vy, vz))
             # Check for collision with ships
             for ship in ships:
-                sx, sy, sz = ship
+                sx, sy, sz, st = ship
                 if abs(sx - x) < 3 and abs(sy - y) < 3 and abs(sz - z) < 3:
                     hit_effects.append((sx, sy, sz, time.ticks_ms()))
                     ships_to_remove.add(ship)
@@ -565,13 +575,13 @@ def update_game():
     # Update ship positions and remove hit ships
     for ship in ships:
         if ship not in ships_to_remove:
-            x, y, z = ship
-            z -= 0.35 * (current_level + 1)
+            x, y, z, t = ship
+            z -= 0.35 * (current_level*.5 + 1)
             if z < 1:  # Check if ship has passed
                 ships_passed += 1
                 continue  # Skip adding this ship to new_ships
-            new_ships.append((x, y, z))
-            if random.randint(0, 100) < 20:  # 20% chance to fire a laser each frame
+            new_ships.append((x, y, z, t))
+            if random.randint(0, 100) < 10:  # 10% chance to fire a laser each frame
                 vz = -3  # Velocity vector in z-direction (towards player) and faster
                 if z != 0:
                     vx = (x / z) * vz
@@ -630,7 +640,10 @@ def level_loop(level_data):
     if ships_passed > level_data["max_passed"] + player_stats["shield"]:
         return False
     
-    earned_money = kill_count * 10  # Example earning calculation
+    storyteller("We did it - let's resupply",0,0,72,40,5,7)
+    time.sleep(1)
+    
+    earned_money += kill_count * 10  # Example earning calculation
     show_shop_screen(earned_money)
 
 
