@@ -643,7 +643,7 @@ def level_loop(level_data):
     storyteller("We did it - let's resupply",0,0,72,40,5,7)
     time.sleep(1)
     
-    earned_money += kill_count * 10  # Example earning calculation
+    earned_money = kill_count * 10  # Example earning calculation
     show_shop_screen(earned_money)
 
 
