@@ -51,6 +51,7 @@ def rotate_y(x, y, z, angle):
     return x, y, z
 
 def rotate_z(x, y, z, angle):
+    
     rad = math.radians(angle)
     cosa = math.cos(rad)
     sina = math.sin(rad)
@@ -107,7 +108,7 @@ money = 0
 
 # Game state variables
 levels = [
-    {"intro": "Level 1: Hey rookie - time to shoot something.  Defend the rebel base.  Make sure no more than 5 ships get by.", "max_passed": 5},
+    {"intro": "Level 1: Hey rookie - Defend the rebel base.  Make sure no more than 5 ships get by.", "max_passed": 5},
     {"intro": "Level 2: Here comes another wave - we can't take much more damage!", "max_passed": 3},
     {"intro": "Level 3: This is the final push - just hold them off a little longer", "max_passed": 1},
 ]
@@ -120,7 +121,7 @@ shop_items = [
     {"name": "Missile", "cost": 50, "effect": "smart_bomb"},
     {"name": "Lasers", "cost": 60, "effect": "extra_lasers"},
     {"name": "Music", "cost": 70, "effect": "play_music"},
-    {"name": "Shot", "cost": 80, "effect": "more_baddies"},
+    {"name": "Shot", "cost": 80, "effect": "hard_mode"},
 ]
 
 sequence = [
@@ -147,10 +148,13 @@ last_shot_time = 0
 
 # Player stats
 player_stats = {
-    "time_between_shots": 500,
+    "time_between_shots": 1000,
     "rotation_speed": 3.0,
     "laser_speed": 3,
     "shield": 0,
+    "smart_bombs": 0,
+    "extra_lasers": 0,
+    "hard_mode":0,
 }
 
 def storyteller(text, start_x, start_y, area_width, area_height, font_width, font_height):
@@ -272,12 +276,13 @@ def apply_item_effect(effect):
         player_stats["laser_speed"] += 1
     elif effect == "play_music":
         play_audio_sequence(sequence)
+    elif effect == "smart_bomb":  
+        player_stats["smart_bombs"] += 1
+    elif effect == "extra_lasers":  
+        player_stats["extra_lasers"] += 1
+    elif effect == "hard_mode":  
+        player_stats["hard_mode"] += 1
         
-        
-    {"name": "Missile", "cost": 50, "effect": "smart_bomb"},
-    {"name": "Lasers", "cost": 60, "effect": "extra_lasers"},
-    {"name": "Music", "cost": 70, "effect": "play_music"},
-    {"name": "Shot", "cost": 80, "effect": "more_baddies"},
 
 # Function to display the shop screen
 def show_shop_screen(earned_money):
@@ -412,6 +417,26 @@ def draw_hit_effects(rotation_x, rotation_y, rotation_z):
 # Handle input and update rotation
 rotation_x, rotation_y, rotation_z = 0, 0, 0
 
+# Function to activate smart bomb
+def activate_smart_bomb():
+    global ships, enemy_lasers, player_stats
+
+    if player_stats["smart_bombs"] > 0:
+        player_stats["smart_bombs"] -= 1
+
+        # Flash the screen white
+        thumby.display.fill(1)
+        thumby.display.update()
+        time.sleep(0.1)
+        thumby.display.fill(0)
+        thumby.display.update()
+
+        # Destroy all ships
+        for ship in ships:
+            sx, sy, sz = ship
+            hit_effects.append((sx, sy, sz, time.ticks_ms()))
+        ships = []
+
 def update_input():
     global rotation_x, rotation_y, rotation_z, last_shot_time
     if thumby.buttonU.pressed():
@@ -435,6 +460,8 @@ def update_input():
         if current_time - last_shot_time >= player_stats["time_between_shots"]:
             fire_lasers()
             last_shot_time = current_time
+    if thumby.buttonB.justPressed():  # Add this block
+        activate_smart_bomb()
 
 def rotate(x, y, z, angle_x, angle_y, angle_z):
     x, y, z = rotate_x(x, y, z, angle_x)
@@ -451,19 +478,25 @@ def fire_lasers():
     # Fire lasers from two positions towards the center
     gun1_x, gun1_y, gun1_z = 5, -3, 0.1
     gun2_x, gun2_y, gun2_z = -5, -3, 0.1
+    if (player_stats["extra_lasers"] > 0):
+        gun3_x, gun3_y, gun3_z = 0, -3, 0.1
 
     # Calculate the transformed gun positions
     gun1_x, gun1_y, gun1_z = rotate(gun1_x, gun1_y, gun1_z, -rotation_x, -rotation_y, -rotation_z)
     gun2_x, gun2_y, gun2_z = rotate(gun2_x, gun2_y, gun2_z, -rotation_x, -rotation_y, -rotation_z)
+    if (player_stats["extra_lasers"] > 0):
+        gun3_x, gun3_y, gun3_z = rotate(gun3_x, gun3_y, gun3_z, -rotation_x, -rotation_y, -rotation_z)
 
     laser_speed = player_stats["laser_speed"]
     player_lasers.append((gun1_x, gun1_y, gun1_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
     player_lasers.append((gun2_x, gun2_y, gun2_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
+    if (player_stats["extra_lasers"] > 0):
+        player_lasers.append((gun3_x, gun3_y, gun3_z, direction_x * laser_speed, direction_y * laser_speed, direction_z * laser_speed))
 
 # Update game state (move ships and lasers)
 def update_game():
     global enemy_lasers, player_lasers, hit_effects, ships, score, kill_count, ships_passed, current_level
-    spawnrate = 3 * (current_level + 1)
+    spawnrate = 3 * (current_level + 1 + player_stats["hard_mode"])
     if random.randint(0, 100) < spawnrate:  # 3% chance to spawn a new ship each frame
         spawn_ship()
     
@@ -554,6 +587,12 @@ def level_loop(level_data):
 
 def game_loop():
     global current_level, ships_passed, score, kill_count
+    reset_level_variables()
+    draw_stars(rotation_x, rotation_y, rotation_z)
+    draw_planets(rotation_x, rotation_y, rotation_z)
+    thumby.display.blit(cockpit, 0, 0, 72, 40, 0, 0, 0)
+    thumby.display.drawText(f'X-Wing', 25, 35, 1)
+    thumby.display.update()
     play_audio_sequence(sequence)
     while current_level < len(levels):
         ships_passed = 0
