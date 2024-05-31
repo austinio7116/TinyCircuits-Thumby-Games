@@ -125,15 +125,19 @@ shop_items = [
 ]
 
 sequence = [
-    (294, 200), (294, 200), (294, 200),  # Triplet of D
+    (294, 100), (294, 100), (294, 100),  # Triplet of D
     (392, 600), (587, 600),                  # G, D
-    (523, 200), (494, 200), (440, 200),     # Triplet C, B, A
-    (784, 600), (587, 600),                  # G (octave up), D
-    (523, 200), (494, 200), (440, 200),     # Triplet C, B, A
-    (784, 600), (587, 600),                   # G (octave up), D
-    (523, 200), (494, 200), (523, 200),
+    (523, 100), (494, 100), (440, 100),     # Triplet C, B, A
+    (784, 600), (587, 300),                  # G (octave up), D
+    (523, 100), (494, 100), (440, 100),     # Triplet C, B, A
+    (784, 600), (587, 300),                   # G (octave up), D
+    (523, 100), (494, 100), (523, 100),
     (440, 600)
 ]
+
+no_money_sequence = [(2000, 100), (1000, 100), (1500, 100), (1000, 100), (1250, 100), (1000, 200)]
+
+buy_sequence = [(1000, 100),(1250, 100)]
 
 def play_audio_sequence(sequence):
     # This function plays a sequence of audio tones.
@@ -177,13 +181,11 @@ def storyteller(text, start_x, start_y, area_width, area_height, font_width, fon
                 thumby.display.drawText("...", start_x, start_y + area_height - font_height, 1)
                 thumby.display.update()
                 if thumby.buttonA.justPressed():
-                    thumby.audio.play(3000, 50)
                     break
                 time.sleep(0.1)
                 thumby.display.drawFilledRectangle(start_x, start_y + area_height - font_height, area_width, font_height, 0)
                 thumby.display.update()
                 if thumby.buttonA.justPressed():
-                    thumby.audio.play(3000, 50)
                     break
                 time.sleep(0.1)
             thumby.display.fill(0)
@@ -298,7 +300,10 @@ def show_shop_screen(earned_money):
                 money -= current_price
                 effect = shop_items[selected_option]["effect"]
                 if effect:
+                    play_audio_sequence(buy_sequence)
                     apply_item_effect(effect)
+            else:
+                play_audio_sequence(no_money_sequence)
         else:
             selected_option = result
             
@@ -306,11 +311,11 @@ def show_shop_screen(earned_money):
         time.sleep(0.2)  # Add a small delay to make the flashing visible
 
 def show_game_over_screen():
-    storyteller('Game Over',0,0,72,40,5,7)
+    storyteller('Too many ships got through - the rebel base is destroyed.',0,0,72,40,5,7)
     time.sleep(1)
     
 def you_win_screen():
-    storyteller('The secret base is secured!',0,0,72,40,5,7)
+    storyteller('The rebel base is secured! Well Done!',0,0,72,40,5,7)
     time.sleep(1)
 
 def spawn_ship():
@@ -399,6 +404,7 @@ def draw_hit_effects(rotation_x, rotation_y, rotation_z):
         num_circles = random.randint(3, 7)
         
         for _ in range(num_circles):
+            audio.play(100, 10)
             # Generate random offset around the impact point
             offset_x = random.uniform(-4, 4)
             offset_y = random.uniform(-4, 4)
@@ -471,6 +477,7 @@ def rotate(x, y, z, angle_x, angle_y, angle_z):
 
 def fire_lasers():
     global player_lasers
+    thumby.audio.play(random.randrange(270, 300), 50)
     # Calculate direction vector towards where the player is looking
     direction_x, direction_y, direction_z = 0, 0, 1
     direction_x, direction_y, direction_z = rotate(direction_x, direction_y, direction_z, -rotation_x, -rotation_y, -rotation_z)
@@ -574,7 +581,18 @@ def level_loop(level_data):
         thumby.display.blit(cockpit, 0, 0, 72, 40, 0, 0, 0)
         thumby.display.drawText(f'K:{kill_count}', 22, 35, 1)
         thumby.display.drawText(f'D:{ships_passed}', 37, 35, 1)
+        
+        time_elapsed = time.ticks_diff(time.ticks_ms(), start_time) / 1000
+        time_bar_length = int(15 * (time_elapsed / 30))
+        
+        remaining_ships = max(0, levels[current_level]["max_passed"] + player_stats["shield"] - ships_passed)
+        ships_bar_length = int(15 * (remaining_ships / levels[current_level]["max_passed"]))
+        
+        thumby.display.drawLine(2, 39, 2 + time_bar_length, 39, 0)
+        thumby.display.drawLine(54, 39, 54 + ships_bar_length, 39, 0)
+        
         thumby.display.update()
+
     
     if ships_passed > level_data["max_passed"] + player_stats["shield"]:
         return False
