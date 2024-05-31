@@ -349,7 +349,7 @@ def draw_planets(rotation_x, rotation_y, rotation_z):
             draw_circle(screen_x, screen_y, size, 1)
 
 # Render ships
-def draw_ships(rotation_x, rotation_y, rotation_z):
+def draw_x_ships(rotation_x, rotation_y, rotation_z):
     for ship in ships:
         x, y, z = ship
         x, y, z = rotate_x(x, y, z, rotation_x)
@@ -362,6 +362,39 @@ def draw_ships(rotation_x, rotation_y, rotation_z):
             # Draw ship as an "X" that grows larger as it approaches
             thumby.display.drawLine(screen_x - size, screen_y - size, screen_x + size, screen_y + size, 1)
             thumby.display.drawLine(screen_x - size, screen_y + size, screen_x + size, screen_y - size, 1)
+            
+def draw_ships(rotation_x, rotation_y, rotation_z):
+    for ship in ships:
+        x, y, z = ship
+        x, y, z = rotate_x(x, y, z, rotation_x)
+        x, y, z = rotate_y(x, y, z, rotation_y)
+        x, y, z = rotate_z(x, y, z, rotation_z)
+        screen_x, screen_y = project(x, y, z, SCREEN_WIDTH, SCREEN_HEIGHT, 60, 1)
+        size_factor = 50 / (z + 1)
+        size = max(1, int(size_factor * 2))
+        if 0 <= screen_x < SCREEN_WIDTH and 0 <= screen_y < SCREEN_HEIGHT:
+            # Draw ship body as a circle
+            draw_circle(screen_x, screen_y, max(1, int(size // 2)), 1)
+
+            # Draw wings and additional lines
+            wing_span = size  # Adjust this value as needed for wing size
+            wing_length = wing_span // 2
+
+            # Horizontal line connecting wings, starting from the outside of the circle
+            thumby.display.drawLine(screen_x - wing_length, screen_y, screen_x - wing_length - wing_span, screen_y, 1)
+            thumby.display.drawLine(screen_x + wing_length, screen_y, screen_x + wing_length + wing_span, screen_y, 1)
+
+
+            # Left wing lines
+            thumby.display.drawLine(screen_x - size, screen_y - 2 * wing_length, screen_x - size - wing_length, screen_y - wing_length, 1)  # \
+            thumby.display.drawLine(screen_x - size, screen_y + 2 * wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)  # /
+            thumby.display.drawLine(screen_x - size - wing_length, screen_y - wing_length, screen_x - size - wing_length, screen_y + wing_length, 1)  # |
+
+            # Right wing lines
+            thumby.display.drawLine(screen_x + size, screen_y - 2 * wing_length, screen_x + size + wing_length, screen_y - wing_length, 1)  # /
+            thumby.display.drawLine(screen_x + size, screen_y + 2 * wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)  # \
+            thumby.display.drawLine(screen_x + size + wing_length, screen_y - wing_length, screen_x + size + wing_length, screen_y + wing_length, 1)  # |
+
 
 # Render lasers
 def draw_lasers(rotation_x, rotation_y, rotation_z, lasers):
